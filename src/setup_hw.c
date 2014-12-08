@@ -8,6 +8,7 @@
 #include "stm32f4xx_hal.h"
 #include "stm32f4xx_hal_uart.h"
 
+
 void initUART(UART_HandleTypeDef* uartDef){
 	GPIO_InitTypeDef GPIO_InitStruct;
 
@@ -29,6 +30,10 @@ void initUART(UART_HandleTypeDef* uartDef){
 	uartDef->Init.HwFlowCtl = UART_HWCONTROL_NONE;
 	uartDef->Init.OverSampling = UART_OVERSAMPLING_16;
 
+	// __HAL_UART_ENABLE_IT(uartDef,UART_IT_RXNE);
+
+    HAL_NVIC_SetPriority(USART6_IRQn , 0, 1);
+    HAL_NVIC_EnableIRQ(USART6_IRQn);
 	HAL_UART_Init(uartDef);
 }
 

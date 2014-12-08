@@ -64,6 +64,7 @@
 
 UART_HandleTypeDef huart2;
 
+
 void setRow(int row);
 void showLine(int amount);
 void setRGB(uint32_t rgb1, uint32_t rgb2, uint8_t plane );
@@ -71,8 +72,14 @@ void randomizeFramebuffer(uint32_t *buffer);
 
 int randomMod = 0;
 
-int	main() {
 
+void USART6_IRQHandler(void) {
+	randomMod = 200;
+	HAL_UART_IRQHandler(&huart2);
+}
+
+
+int	main() {
 	int waits[] = {10,20,40,80,160,320,640,1280};
 	uint32_t framebuffer[MATRIX_SIZE];
 	int frame = 0;
@@ -106,7 +113,10 @@ int	main() {
 		if (++frame % 25 == 0) randomizeFramebuffer(framebuffer);
 		if (frame % 200 == 0) {
 			uint8_t* data = "hello world";
+			// HAL_UART_Transmit_IT(&huart2,data,11);
+
 			HAL_UART_Transmit(&huart2,data,11,-1);
+
 			randomMod++;
 		}
 	}
