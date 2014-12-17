@@ -52,6 +52,7 @@
 #include "stm32f4xx.h"
 #include "stm32f4xx_hal.h"
 #include "setup_hw.h"
+#include <math.h>
 
 #define DISP_ON         GPIOB->BSRRH = GPIO_PIN_10;
 #define DISP_OFF        GPIOB->BSRRL = GPIO_PIN_10;
@@ -62,62 +63,67 @@
 #define MATRIX_HEIGHT   32
 #define MATRIX_SIZE     MATRIX_WIDTH*MATRIX_HEIGHT
 
-UART_HandleTypeDef huart2;
-
-
 void setRow(int row);
 void showLine(int amount);
 void setRGB(uint32_t rgb1, uint32_t rgb2, uint8_t plane );
-void randomizeFramebuffer(uint32_t *buffer);
+void displayBuffer(uint32_t buffer[]);
+void randomizeFramebuffer(uint32_t buffer[]);
 
-int randomMod = 0;
+const int waits[] = {10,20,40,80,160,320,640,1280};
+const int scan =  MATRIX_HEIGHT/2;
 
-
-void USART6_IRQHandler(void) {
-	randomMod = 200;
-	HAL_UART_IRQHandler(&huart2);
-}
-
+UART_HandleTypeDef huart2;
+uint8_t gammaTable[256];
+uint32_t framebuffer[MATRIX_SIZE];
 
 int	main() {
-	int waits[] = {10,20,40,80,160,320,640,1280};
-	uint32_t framebuffer[MATRIX_SIZE];
-	int frame = 0;
 
 	initGPIO();
 	initUART(&huart2);
-
 	DISP_OFF;
 
-	randomizeFramebuffer(framebuffer);
+	// precalculate the gamma lookup table
+	for (float i=0; i<256; i++) gammaTable[(int)i] = 255*pow((i/256),1.8);
 
-	int scan = MATRIX_HEIGHT/2;
+	// clear framebuffer
+	memset (framebuffer, 0, sizeof(framebuffer));
 
-	uint8_t rowOffset1;     // framebuffer index offset for row 1
-	uint8_t rowOffset2;     // framebuffer index offset for row 2
+	// testpattern,
+	framebuffer[0] =    0x00000050;
+	framebuffer[31] =   0x00005000;
+	framebuffer[992] =  0x00500000;
+	framebuffer[1023] = 0x00505000;
 
-	while (1) {
-		for (int y=0; y<scan; y++){
-			setRow(y);
-			rowOffset1 = MATRIX_WIDTH*y;
-			rowOffset2 = (MATRIX_WIDTH*y)+scan;
+	// display test pattern for 500 frames
+	for (int i=0; i<500; i++){
+		displayBuffer(framebuffer);
+	}
 
-			for (int plane=0; plane < 8; plane ++){
-				for (int x=0; x<MATRIX_WIDTH; x++){
-					setRGB(framebuffer[rowOffset1+x], framebuffer[rowOffset2+x], plane);
-					CLK_TOGGLE;
-				}
-				showLine(waits[plane]);
-			}
-		}
-		if (++frame % 25 == 0) randomizeFramebuffer(framebuffer);
+	int frame = 0;
+	while(1){
+		displayBuffer(framebuffer);
+		if (++frame % 5 == 0) randomizeFramebuffer(framebuffer);
 		if (frame % 200 == 0) {
 			uint8_t* data = "hello world";
-			// HAL_UART_Transmit_IT(&huart2,data,11);
+			// HAL_UART_Transmit(&huart2,data,11,-1);
+		}
+	}
+}
 
-			HAL_UART_Transmit(&huart2,data,11,-1);
-
-			randomMod++;
+/**
+ * Displays the buffer on the display using binary encoding (PWM equivalent).
+ */
+void displayBuffer(uint32_t buffer[]) {
+	for (int s=0; s<scan; s++){
+		setRow(s);
+		int offset1 = MATRIX_WIDTH * s;
+		int offset2 = MATRIX_WIDTH * (s+scan);
+		for (int plane=0; plane < 8; plane ++) {
+			for (int x=0; x<MATRIX_WIDTH; x++) {
+				setRGB(buffer[offset1+x], buffer[offset2+x], plane);
+				CLK_TOGGLE;
+			}
+			showLine(waits[plane]);
 		}
 	}
 }
@@ -125,14 +131,21 @@ int	main() {
 /**
  * generates some random junk for testing on the framebuffer.
  */
-void randomizeFramebuffer(uint32_t *buffer) {
-	if (randomMod > 7) randomMod = 1;
-	int max = (1 << randomMod);
+uint8_t counter;
+void randomizeFramebuffer(uint32_t buffer[]) {
+	counter ++; // yes, it will overflow
 
-	for (int i=0; i < MATRIX_SIZE; i++){
-		buffer[i] = 0x00 | ((rand() % max) << 0) | ((rand() % max)  << 8) | ((rand() % max)  << 16);
+	int max = gammaTable[counter];
+	if (max == 0) max = 1;
+
+	for (int i = 0; i < MATRIX_SIZE; i++) {
+		buffer[i] = 0x00
+				| ((gammaTable[rand() % max]) << 0)
+				| ((gammaTable[rand() % max]) << 8)
+				| ((gammaTable[rand() % max]) << 16);
 	}
 }
+
 
 /**
  * sets the row on the row gpio ports
@@ -190,4 +203,8 @@ void showLine(int amount) {
 	DISP_ON;
 	for (int c=0; c<amount; c++) asm("nop");
 	DISP_OFF;
+}
+
+void USART6_IRQHandler(void) {
+	HAL_UART_IRQHandler(&huart2);
 }
