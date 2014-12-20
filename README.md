@@ -11,8 +11,8 @@ n00bish mistakes I make - be my guest.
 ##Status:
 - [x] 24 Bit Framebuffer
 - [x] Gamma correction support
-- [x] Basic UART Support
-- [ ] uploading framebuffer via uart
-- [ ] basic command(line) parser to tweak runtime parameters via UART
-- [ ] doublebuffering
-- [ ] ESP8266 Support
+- [x] Basic UART support
+- [ ] Uploading framebuffer via UART
+- [ ] Basic command(line) parser to tweak runtime parameters via UART
+- [ ] Doublebuffering
+- [ ] ESP8266 support
