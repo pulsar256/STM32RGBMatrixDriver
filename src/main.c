@@ -63,6 +63,8 @@
 #define MATRIX_HEIGHT   32
 #define MATRIX_SIZE     MATRIX_WIDTH*MATRIX_HEIGHT
 
+#define RXBUFFERSIZE	256
+
 void setRow(int row);
 void showLine(int amount);
 void setRGB(uint32_t rgb1, uint32_t rgb2, uint8_t plane );
@@ -71,19 +73,29 @@ void randomizeFramebuffer(uint32_t buffer[]);
 
 const int waits[] = {10,20,40,80,160,320,640,1280};
 const int scan =  MATRIX_HEIGHT/2;
-
-UART_HandleTypeDef huart2;
 uint8_t gammaTable[256];
 uint32_t framebuffer[MATRIX_SIZE];
+
+UART_HandleTypeDef uartHandle;
+__IO ITStatus UartReady = RESET;
+uint8_t aRxBuffer[RXBUFFERSIZE];
+
+
+char* uartAliveMsg = "200 frames passed";
+
 
 int	main() {
 
 	initGPIO();
-	initUART(&huart2);
+	initUART(&uartHandle);
+
+	if(HAL_UART_Transmit_IT(&uartHandle, (uint8_t*) "RGB-matrix started", 18)  != HAL_OK) { }
+	if(HAL_UART_Receive_IT (&uartHandle, (uint8_t*) aRxBuffer, RXBUFFERSIZE)   != HAL_OK) { }
+
 	DISP_OFF;
 
 	// precalculate the gamma lookup table
-	for (float i=0; i<256; i++) gammaTable[(int)i] = 255*pow((i/256),1.8);
+	for (int i=0; i<256; i++) gammaTable[i] = 255*pow((i/256.0),1.6);
 
 	// clear framebuffer
 	memset (framebuffer, 0, sizeof(framebuffer));
@@ -104,8 +116,9 @@ int	main() {
 		displayBuffer(framebuffer);
 		if (++frame % 5 == 0) randomizeFramebuffer(framebuffer);
 		if (frame % 200 == 0) {
-			uint8_t* data = "hello world";
-			// HAL_UART_Transmit(&huart2,data,11,-1);
+			while (UartReady != SET){}
+			UartReady = RESET;
+			if(HAL_UART_Transmit_IT(&uartHandle, uartAliveMsg, 17)!= HAL_OK) { }
 		}
 	}
 }
@@ -205,6 +218,10 @@ void showLine(int amount) {
 	DISP_OFF;
 }
 
-void USART6_IRQHandler(void) {
-	HAL_UART_IRQHandler(&huart2);
-}
+/**
+ * IRQ Handlers.
+ */
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *uartHandle) { UartReady = SET; }
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *uartHandle) { UartReady = SET; }
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *uartHandle) {}
+void USART6_IRQHandler(void) { HAL_UART_IRQHandler(&uartHandle); }

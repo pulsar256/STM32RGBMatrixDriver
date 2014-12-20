@@ -14,27 +14,27 @@ void initUART(UART_HandleTypeDef* uartDef){
 
 	RCC->APB2ENR |= RCC_APB2ENR_USART6EN;
 
-	GPIO_InitStruct.Pin = GPIO_PIN_11|GPIO_PIN_12;
-	GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	GPIO_InitStruct.Speed = GPIO_SPEED_LOW;
+	GPIO_InitStruct.Pin       = GPIO_PIN_11 | GPIO_PIN_12;
+	GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
+	GPIO_InitStruct.Pull      = GPIO_NOPULL;
+	GPIO_InitStruct.Speed     = GPIO_SPEED_FAST;
 	GPIO_InitStruct.Alternate = GPIO_AF8_USART6;
 	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-	uartDef->Instance = USART6;
-	uartDef->Init.BaudRate = 9600;
+	HAL_NVIC_SetPriority(USART6_IRQn, 0, 1);
+	HAL_NVIC_EnableIRQ(USART6_IRQn);
+
+	uartDef->Instance        = USART6;
+	uartDef->Init.BaudRate   = 115200;
 	uartDef->Init.WordLength = UART_WORDLENGTH_8B;
-	uartDef->Init.StopBits = UART_STOPBITS_1;
-	uartDef->Init.Parity = UART_PARITY_NONE;
-	uartDef->Init.Mode = UART_MODE_TX_RX;
-	uartDef->Init.HwFlowCtl = UART_HWCONTROL_NONE;
-	uartDef->Init.OverSampling = UART_OVERSAMPLING_16;
+	uartDef->Init.StopBits   = UART_STOPBITS_1;
+	uartDef->Init.Parity     = UART_PARITY_NONE;
+	uartDef->Init.HwFlowCtl  = UART_HWCONTROL_NONE;
+	uartDef->Init.Mode       = UART_MODE_TX_RX;
 
-	// __HAL_UART_ENABLE_IT(uartDef,UART_IT_RXNE);
-
-    HAL_NVIC_SetPriority(USART6_IRQn , 0, 1);
-    HAL_NVIC_EnableIRQ(USART6_IRQn);
-	HAL_UART_Init(uartDef);
+	if(HAL_UART_Init(uartDef) != HAL_OK) {
+		// TODO: handle errors by blinking an LED
+	}
 }
 
 void initGPIO(){
