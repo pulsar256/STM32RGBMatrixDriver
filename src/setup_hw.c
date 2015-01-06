@@ -7,24 +7,11 @@
 
 #include "stm32f4xx_hal.h"
 #include "stm32f4xx_hal_uart.h"
+#include "main.h"
 
 
-void initUART(UART_HandleTypeDef* uartDef){
-	GPIO_InitTypeDef GPIO_InitStruct;
-
-	RCC->APB2ENR |= RCC_APB2ENR_USART6EN;
-
-	GPIO_InitStruct.Pin       = GPIO_PIN_11 | GPIO_PIN_12;
-	GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
-	GPIO_InitStruct.Pull      = GPIO_NOPULL;
-	GPIO_InitStruct.Speed     = GPIO_SPEED_FAST;
-	GPIO_InitStruct.Alternate = GPIO_AF8_USART6;
-	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-	HAL_NVIC_SetPriority(USART6_IRQn, 0, 1);
-	HAL_NVIC_EnableIRQ(USART6_IRQn);
-
-	uartDef->Instance        = USART6;
+void initUART(UART_HandleTypeDef* uartDef) {
+	uartDef->Instance        = USARTx;
 	uartDef->Init.BaudRate   = 115200;
 	uartDef->Init.WordLength = UART_WORDLENGTH_8B;
 	uartDef->Init.StopBits   = UART_STOPBITS_1;
@@ -32,12 +19,15 @@ void initUART(UART_HandleTypeDef* uartDef){
 	uartDef->Init.HwFlowCtl  = UART_HWCONTROL_NONE;
 	uartDef->Init.Mode       = UART_MODE_TX_RX;
 
+	// HAL_UART_Init will run the "overridden" HAL_UART_MspInit callback
+	// in stm32f4xx_hal_msp.c
 	if(HAL_UART_Init(uartDef) != HAL_OK) {
-		// TODO: handle errors by blinking an LED
+		while(1);
 	}
 }
 
-void initGPIO(){
+
+void initGPIO() {
 	// setup hardware / gpio ports
 
 	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN | RCC_AHB1ENR_GPIOBEN | RCC_AHB1ENR_GPIOCEN ;       // enable ports A, B, C

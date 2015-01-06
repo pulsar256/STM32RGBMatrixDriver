@@ -1,15 +1,13 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 
+static DMA_HandleTypeDef hdma_tx;
+static DMA_HandleTypeDef hdma_rx;
 
 /**
  * callback for HAL_UART_Init (via setup_hw.c)
  */
-void HAL_UART_MspInit(UART_HandleTypeDef *huart)
-{
-  static DMA_HandleTypeDef hdma_tx;
-  static DMA_HandleTypeDef hdma_rx;
-
+void HAL_UART_MspInit(UART_HandleTypeDef *huart) {
   GPIO_InitTypeDef  GPIO_InitStruct;
 
   USARTx_TX_GPIO_CLK_ENABLE();
@@ -69,24 +67,18 @@ void HAL_UART_MspInit(UART_HandleTypeDef *huart)
 }
 
 
+void HAL_UART_MspDeInit(UART_HandleTypeDef *huart) {
+	USARTx_FORCE_RESET();
+	USARTx_RELEASE_RESET();
 
-void HAL_UART_MspDeInit(UART_HandleTypeDef *huart)
-{
+	HAL_GPIO_DeInit(USARTx_TX_GPIO_PORT, USARTx_TX_PIN);
+	HAL_GPIO_DeInit(USARTx_RX_GPIO_PORT, USARTx_RX_PIN);
 
-  static DMA_HandleTypeDef hdma_tx;
-  static DMA_HandleTypeDef hdma_rx;
+	HAL_DMA_DeInit(&hdma_tx);
+	HAL_DMA_DeInit(&hdma_rx);
 
-  USARTx_FORCE_RESET();
-  USARTx_RELEASE_RESET();
-
-  HAL_GPIO_DeInit(USARTx_TX_GPIO_PORT, USARTx_TX_PIN);
-  HAL_GPIO_DeInit(USARTx_RX_GPIO_PORT, USARTx_RX_PIN);
-
-  HAL_DMA_DeInit(&hdma_tx);
-  HAL_DMA_DeInit(&hdma_rx);
-
-  HAL_NVIC_DisableIRQ(USARTx_DMA_TX_IRQn);
-  HAL_NVIC_DisableIRQ(USARTx_DMA_RX_IRQn);
+	HAL_NVIC_DisableIRQ(USARTx_DMA_TX_IRQn);
+	HAL_NVIC_DisableIRQ(USARTx_DMA_RX_IRQn);
 }
 
 

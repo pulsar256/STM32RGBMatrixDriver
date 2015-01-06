@@ -47,40 +47,15 @@
  * STB  PORT C: GPIO_PIN_0
  */
 
-#include <stdlib.h>
+#include "main.h"
 
-#include "stm32f4xx.h"
-#include "stm32f4xx_hal.h"
-#include "setup_hw.h"
-#include <math.h>
-
-#define DISP_ON         GPIOB->BSRRH = GPIO_PIN_10;
-#define DISP_OFF        GPIOB->BSRRL = GPIO_PIN_10;
-#define CLK_TOGGLE      GPIOC->ODR ^= (1 << 7); GPIOC->ODR ^= (1 << 7);
-#define STROBE          GPIOC->BSRRL = GPIO_PIN_0; GPIOC->BSRRH = GPIO_PIN_0;
-
-#define MATRIX_WIDTH    32
-#define MATRIX_HEIGHT   32
-#define MATRIX_SIZE     MATRIX_WIDTH*MATRIX_HEIGHT
-
-#define RXBUFFERSIZE	256
-
-void setRow(int row);
-void showLine(int amount);
-void setRGB(uint32_t rgb1, uint32_t rgb2, uint8_t plane );
-void displayBuffer(uint32_t buffer[]);
-void randomizeFramebuffer(uint32_t buffer[]);
+UART_HandleTypeDef uartHandle;
+volatile ITStatus uartReady = RESET;
 
 const int waits[] = {10,20,40,80,160,320,640,1280};
 const int scan =  MATRIX_HEIGHT/2;
 uint8_t gammaTable[256];
 uint32_t framebuffer[MATRIX_SIZE];
-
-UART_HandleTypeDef uartHandle;
-__IO ITStatus UartReady = RESET;
-uint8_t aRxBuffer[RXBUFFERSIZE];
-
-
 char* uartAliveMsg = "200 frames passed";
 
 
@@ -88,9 +63,6 @@ int	main() {
 
 	initGPIO();
 	initUART(&uartHandle);
-
-	if(HAL_UART_Transmit_IT(&uartHandle, (uint8_t*) "RGB-matrix started", 18)  != HAL_OK) { }
-	if(HAL_UART_Receive_IT (&uartHandle, (uint8_t*) aRxBuffer, RXBUFFERSIZE)   != HAL_OK) { }
 
 	DISP_OFF;
 
@@ -100,7 +72,7 @@ int	main() {
 	// clear framebuffer
 	memset (framebuffer, 0, sizeof(framebuffer));
 
-	// testpattern,
+	// test pattern, light up a led in each corner
 	framebuffer[0] =    0x00000050;
 	framebuffer[31] =   0x00005000;
 	framebuffer[992] =  0x00500000;
@@ -116,12 +88,13 @@ int	main() {
 		displayBuffer(framebuffer);
 		if (++frame % 5 == 0) randomizeFramebuffer(framebuffer);
 		if (frame % 200 == 0) {
-			while (UartReady != SET){}
-			UartReady = RESET;
-			if(HAL_UART_Transmit_IT(&uartHandle, uartAliveMsg, 17)!= HAL_OK) { }
+			while (uartReady != SET){}
+			uartReady = RESET;
+			if(HAL_UART_Transmit_DMA(&uartHandle, (uint8_t*) uartAliveMsg, 17)!= HAL_OK) while(1);
 		}
 	}
 }
+
 
 /**
  * Displays the buffer on the display using binary encoding (PWM equivalent).
@@ -185,9 +158,8 @@ void setRow(int row) {
  * loads rgb1 and rgb2 gpio ports with the given bitplane
  */
 void setRGB(uint32_t rgb1, uint32_t rgb2, uint8_t plane ){
-	// TODO: this is quite a good candidate for performance
-	// TODO: optimizations. if you want to drive more chained
-	// TODO: panels, start tweaking this code.
+	// using bitshifting seems to be faster due to gcc optimization
+	// than using a bitmask lookup table here.
 
 	if (rgb1 & (1 << plane))        GPIOA->BSRRL = GPIO_PIN_5;
 	else                            GPIOA->BSRRH = GPIO_PIN_5;
@@ -208,6 +180,7 @@ void setRGB(uint32_t rgb1, uint32_t rgb2, uint8_t plane ){
 	else                            GPIOA->BSRRH = GPIO_PIN_10;
 }
 
+
 /**
  * strobes / shows a line for a n*nop amount of time.
  */
@@ -218,10 +191,26 @@ void showLine(int amount) {
 	DISP_OFF;
 }
 
+
 /**
- * IRQ Handlers.
+ * IRQ Handlers, TODO: move into a conventional stmf4xx_it.c file.
  */
-void HAL_UART_TxCpltCallback(UART_HandleTypeDef *uartHandle) { UartReady = SET; }
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *uartHandle) { UartReady = SET; }
-void HAL_UART_ErrorCallback(UART_HandleTypeDef *uartHandle) {}
-void USART6_IRQHandler(void) { HAL_UART_IRQHandler(&uartHandle); }
+void USARTx_DMA_RX_IRQHandler(void) {
+  HAL_DMA_IRQHandler(uartHandle.hdmarx);
+}
+
+void USARTx_DMA_TX_IRQHandler(void) {
+  HAL_DMA_IRQHandler(uartHandle.hdmatx);
+}
+
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *UartHandle) {
+  uartReady = SET;
+}
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *UartHandle) {
+  uartReady = SET;
+}
+
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *UartHandle) {
+	while(1);
+}
