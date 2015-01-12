@@ -48,16 +48,16 @@
  */
 
 #include "main.h"
+#include "stm32f4xx_it.h"
 
 UART_HandleTypeDef uartHandle;
-volatile ITStatus uartReady = RESET;
+volatile ITStatus uartReady = SET;
 
 const int waits[] = {10,20,40,80,160,320,640,1280};
 const int scan =  MATRIX_HEIGHT/2;
 uint8_t gammaTable[256];
 uint32_t framebuffer[MATRIX_SIZE];
 char* uartAliveMsg = "200 frames passed";
-
 
 int	main() {
 
@@ -192,25 +192,4 @@ void showLine(int amount) {
 }
 
 
-/**
- * IRQ Handlers, TODO: move into a conventional stmf4xx_it.c file.
- */
-void USARTx_DMA_RX_IRQHandler(void) {
-  HAL_DMA_IRQHandler(uartHandle.hdmarx);
-}
 
-void USARTx_DMA_TX_IRQHandler(void) {
-  HAL_DMA_IRQHandler(uartHandle.hdmatx);
-}
-
-void HAL_UART_TxCpltCallback(UART_HandleTypeDef *UartHandle) {
-  uartReady = SET;
-}
-
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *UartHandle) {
-  uartReady = SET;
-}
-
-void HAL_UART_ErrorCallback(UART_HandleTypeDef *UartHandle) {
-	while(1);
-}

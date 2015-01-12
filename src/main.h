@@ -16,7 +16,6 @@ void setRGB(uint32_t rgb1, uint32_t rgb2, uint8_t plane );
 void displayBuffer(uint32_t buffer[]);
 void randomizeFramebuffer(uint32_t buffer[]);
 
-
 #define DISP_ON         GPIOB->BSRRH = GPIO_PIN_10;
 #define DISP_OFF        GPIOB->BSRRL = GPIO_PIN_10;
 #define CLK_TOGGLE      GPIOC->ODR ^= (1 << 7); GPIOC->ODR ^= (1 << 7);
@@ -50,4 +49,3 @@ void randomizeFramebuffer(uint32_t buffer[]);
 #define USARTx_RELEASE_RESET()           __USART6_RELEASE_RESET()
 
 #endif /* __MAIN_H */
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

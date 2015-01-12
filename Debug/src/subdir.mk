@@ -7,19 +7,22 @@ C_SRCS += \
 ../src/_initialize_hardware.c \
 ../src/main.c \
 ../src/setup_hw.c \
-../src/stm32f4xx_hal_msp.c 
+../src/stm32f4xx_hal_msp.c \
+../src/stm32f4xx_it.c 
 
 OBJS += \
 ./src/_initialize_hardware.o \
 ./src/main.o \
 ./src/setup_hw.o \
-./src/stm32f4xx_hal_msp.o 
+./src/stm32f4xx_hal_msp.o \
+./src/stm32f4xx_it.o 
 
 C_DEPS += \
 ./src/_initialize_hardware.d \
 ./src/main.d \
 ./src/setup_hw.d \
-./src/stm32f4xx_hal_msp.d 
+./src/stm32f4xx_hal_msp.d \
+./src/stm32f4xx_it.d 
 
 
 # Each subdirectory must supply rules for building sources it contributes
