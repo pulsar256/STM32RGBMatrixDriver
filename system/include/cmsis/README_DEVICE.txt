@@ -1,7 +1,7 @@
-The stm32f4*.h and system_stm32f4xx.h files are from stm32cubef4.zip,  
+The stm32f10x.h and system_stm32f10x.h files are from stsw-stm32054.zip, 
 the folder:
 
-	STM32Cube_FW_F4_V1.3.0/Drivers/CMSIS/Device/ST/STM32F4xx/Include
+	STM32F10x_StdPeriph_Lib_V3.5.0/Libraries/CMSIS/CM3/DeviceSupport/ST/STM32F10x
 
 The cmsis_device.h is added for convenience.
 

@@ -3,9 +3,9 @@
 // Copyright (c) 2014 Liviu Ionescu.
 //
 
-#ifndef STM32F4_CMSIS_DEVICE_H_
-#define STM32F4_CMSIS_DEVICE_H_
+#ifndef STM32F1_CMSIS_DEVICE_H_
+#define STM32F1_CMSIS_DEVICE_H_
 
-#include "stm32f4xx.h"
+#include "stm32f10x.h"
 
-#endif // STM32F4_CMSIS_DEVICE_H_
+#endif // STM32F1_CMSIS_DEVICE_H_
