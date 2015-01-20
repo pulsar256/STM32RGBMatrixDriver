@@ -11,7 +11,7 @@ n00bish mistakes I make - be my guest.
 ##Status:
 - [x] 24 Bit Framebuffer
 - [x] Gamma correction support
-- [x] Basic UART support
+- [ ] Basic UART support
 - [ ] Uploading framebuffer via UART
 - [ ] Basic command(line) parser to tweak runtime parameters via UART
 - [ ] Doublebuffering
