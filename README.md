@@ -14,5 +14,5 @@ n00bish mistakes I make - be my guest.
 - [ ] Basic UART support
 - [ ] Uploading framebuffer via UART
 - [ ] Basic command(line) parser to tweak runtime parameters via UART
-- [ ] Doublebuffering
+- [x] Doublebuffering
 - [ ] ESP8266 support

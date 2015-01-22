@@ -11,10 +11,9 @@
 const int waits[] = { 5, 10, 20, 40, 80, 160, 320, 640 };
 const int scan = MATRIX_HEIGHT / 2;
 uint8_t gammaTable[256];
-
 uint32_t bufferA[MATRIX_SIZE];
 uint32_t bufferB[MATRIX_SIZE];
-int birthRate = 0;
+uint32_t birthRate = 0;
 
 // ----- Timing definitions -------------------------------------------------
 
@@ -26,7 +25,7 @@ int main() {
 	// precalculate the gamma lookup table
 	for (int i = 0; i < 256; i++) gammaTable[i] = 255 * pow((i / 256.0), 1.6);
 
-	// clear framebuffer
+	// clear framebuffers
 	memset(bufferA, 0, sizeof(bufferA));
 	memset(bufferB, 0, sizeof(bufferB));
 
@@ -58,9 +57,10 @@ int main() {
 		if (++frame % 5 == 0)	{
 			simRun = 1;
 			processBuffer(srcBuffer,dstBuffer);
+
 			currentBuffer = srcBuffer;
-			srcBuffer = dstBuffer;
-			dstBuffer = currentBuffer;
+			srcBuffer     = dstBuffer;
+			dstBuffer     = currentBuffer;
 			currentBuffer = srcBuffer;
 		}
 		if (frame % 4000 == 0 || (birthRate < 10 && simRun == 1)) {
@@ -188,10 +188,10 @@ void processBuffer(uint32_t src[], uint32_t dst[]){
 CellAction analyzeCell(int offset, uint32_t buffer[]){
 	// skip the first row, first column, last column and last row to make alive neighbor
 	// detection easier.
-	if (offset < MATRIX_WIDTH) return KILL;
-	if (offset > MATRIX_SIZE - MATRIX_WIDTH ) return KILL;
-	if (offset % MATRIX_WIDTH == 0) return KILL;
-	if ((offset+1) % MATRIX_WIDTH == 0) return KILL;
+	if ( ( offset    < MATRIX_WIDTH) ||
+	     ( offset    > MATRIX_SIZE - MATRIX_WIDTH ) ||
+	     ( offset    % MATRIX_WIDTH == 0) ||
+	     ((offset+1) % MATRIX_WIDTH == 0)) return KILL;
 
 	int neighbors = 0;
 	int alive = buffer[offset] & 0x01000000;
