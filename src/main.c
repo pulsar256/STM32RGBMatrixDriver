@@ -63,7 +63,7 @@ int main() {
 			dstBuffer = currentBuffer;
 			currentBuffer = srcBuffer;
 		}
-		if (frame % 10000 == 0 || (birthRate < 10 && simRun == 1)) {
+		if (frame % 4000 == 0 || (birthRate < 10 && simRun == 1)) {
 			randomizeFramebuffer(currentBuffer);
 			LED_PORT->ODR ^= LED_P;
 		}
@@ -95,10 +95,10 @@ void randomizeFramebuffer(uint32_t buffer[]) {
 
 	for (int i = 0; i < MATRIX_SIZE; i++) {
 		buffer[i] = 0x00
-				| ((gammaTable[rand() % 255]) << 0)
-				| ((gammaTable[rand() % 255]) << 8)
-				| ((gammaTable[rand() % 255]) << 16)
-				| ((rand() % 255) << 24);
+			| ((gammaTable[rand() % 255]) << 0)
+			| ((gammaTable[rand() % 255]) << 8)
+			| ((gammaTable[rand() % 255]) << 16)
+			| ((rand() % 255) << 24);
 	}
 }
 
@@ -160,17 +160,17 @@ void showLine(int amount) {
 }
 
 void processBuffer(uint32_t src[], uint32_t dst[]){
-
 	// apply GOF rules on src and store result in dst.
 	for (int i=0; i<MATRIX_SIZE; i++){
-		if (COPY == analyzeCell(i,src) ){
+		CellAction action = analyzeCell(i,src);
+		if (COPY == action ){
 			dst[i] = src[i];
 		}
-		else if (NEW == analyzeCell(i,src) ){
+		else if (NEW == action ){
 			dst[i] = ((gammaTable[rand() % 255]) << 0) | ((gammaTable[rand() % 255]) << 8) | ((gammaTable[rand() % 255]) << 16) | ((1) << 24);
 			birthRate++;
 		}
-		else if (KILL == analyzeCell(i,src) ){
+		else if (KILL == action ){
 			dst[i] = 0x00ffffff & src[i];
 		}
 	}
@@ -179,8 +179,8 @@ void processBuffer(uint32_t src[], uint32_t dst[]){
 	for (int i=0; i<MATRIX_SIZE; i++){
 		if (! (0x01000000 & dst[i]) ){
 			dst[i] =  (((dst[i]       & 0x000000ff) >> 1))       |
-                (((dst[i] >> 8  & 0x000000ff) >> 1) << 8)  |
-                (((dst[i] >> 16 & 0x000000ff) >> 1) << 16);
+	              (((dst[i] >> 8  & 0x000000ff) >> 1) << 8)  |
+	              (((dst[i] >> 16 & 0x000000ff) >> 1) << 16);
 		}
 	}
 }
