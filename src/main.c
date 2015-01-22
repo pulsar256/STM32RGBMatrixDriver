@@ -5,15 +5,16 @@
 #include "math.h"
 #include "string.h"
 #include "stdlib.h"
-
 #include "main.h"
 #include "matrix_config.h"
 
 const int waits[] = { 5, 10, 20, 40, 80, 160, 320, 640 };
 const int scan = MATRIX_HEIGHT / 2;
 uint8_t gammaTable[256];
-uint32_t framebuffer[MATRIX_SIZE];
-char* uartAliveMsg = "200 frames passed";
+
+uint32_t bufferA[MATRIX_SIZE];
+uint32_t bufferB[MATRIX_SIZE];
+int birthRate = 0;
 
 // ----- Timing definitions -------------------------------------------------
 
@@ -23,30 +24,47 @@ int main() {
 	LED_PORT->BRR = LED_P;
 
 	// precalculate the gamma lookup table
-	for (int i = 0; i < 256; i++) gammaTable[i] = 255 * pow((i / 256.0), 1.8);
+	for (int i = 0; i < 256; i++) gammaTable[i] = 255 * pow((i / 256.0), 1.6);
 
 	// clear framebuffer
-	memset(framebuffer, 0, sizeof(framebuffer));
+	memset(bufferA, 0, sizeof(bufferA));
+	memset(bufferB, 0, sizeof(bufferB));
 
 
 	// test pattern, light up a led in each corner
-	framebuffer[0]    = 0x00000050;
-	framebuffer[31]   = 0x00005000;
-	framebuffer[992]  = 0x00500000;
-	framebuffer[1023] = 0x00505000;
+	bufferA[0]    = 0x00000050;
+	bufferA[31]   = 0x00005000;
+	bufferA[992]  = 0x00500000;
+	bufferA[1023] = 0x00505000;
 
 	// display test pattern for 500 frames
-	for (int i = 0; i < 500; i++) {
-		displayBuffer(framebuffer);
+	for (int i = 0; i < 100; i++) {
+		displayBuffer(bufferA);
 	}
 
 	LED_PORT->BSRR = LED_P;
 
+	uint32_t* currentBuffer = bufferA;
+	uint32_t* srcBuffer = bufferA;
+	uint32_t* dstBuffer = bufferB;
+	randomizeFramebuffer(currentBuffer);
+
 	int frame = 0;
 	while (1) {
-		displayBuffer(framebuffer);
-		if (++frame % 5 == 0)	randomizeFramebuffer(framebuffer);
-		if (frame % 200 == 0) {
+		displayBuffer(currentBuffer);
+		birthRate  = 0;
+		int simRun = 0;
+
+		if (++frame % 5 == 0)	{
+			simRun = 1;
+			processBuffer(srcBuffer,dstBuffer);
+			currentBuffer = srcBuffer;
+			srcBuffer = dstBuffer;
+			dstBuffer = currentBuffer;
+			currentBuffer = srcBuffer;
+		}
+		if (frame % 10000 == 0 || (birthRate < 10 && simRun == 1)) {
+			randomizeFramebuffer(currentBuffer);
 			LED_PORT->ODR ^= LED_P;
 		}
 	}
@@ -73,18 +91,14 @@ void displayBuffer(uint32_t buffer[]) {
 /**
  * generates some random junk for testing on the framebuffer.
  */
-uint8_t counter;
 void randomizeFramebuffer(uint32_t buffer[]) {
-	counter ++; // yes, it will overflow
-
-	int max = gammaTable[counter];
-	if (max == 0) max = 1;
 
 	for (int i = 0; i < MATRIX_SIZE; i++) {
 		buffer[i] = 0x00
-				| ((gammaTable[rand() % max]) << 0)
-				| ((gammaTable[rand() % max]) << 8)
-				| ((gammaTable[rand() % max]) << 16);
+				| ((gammaTable[rand() % 255]) << 0)
+				| ((gammaTable[rand() % 255]) << 8)
+				| ((gammaTable[rand() % 255]) << 16)
+				| ((rand() % 255) << 24);
 	}
 }
 
@@ -107,7 +121,6 @@ void setRow(int row) {
 	if (row & 0b1000) MTX_PORT->BSRR = MTX_PD;
 	else MTX_PORT->BRR = MTX_PD;
 }
-
 
 /**
  * loads rgb1 and rgb2 gpio ports with the given bitplane
@@ -146,6 +159,62 @@ void showLine(int amount) {
 	DISP_OFF;
 }
 
+void processBuffer(uint32_t src[], uint32_t dst[]){
+
+	// apply GOF rules on src and store result in dst.
+	for (int i=0; i<MATRIX_SIZE; i++){
+		if (COPY == analyzeCell(i,src) ){
+			dst[i] = src[i];
+		}
+		else if (NEW == analyzeCell(i,src) ){
+			dst[i] = ((gammaTable[rand() % 255]) << 0) | ((gammaTable[rand() % 255]) << 8) | ((gammaTable[rand() % 255]) << 16) | ((1) << 24);
+			birthRate++;
+		}
+		else if (KILL == analyzeCell(i,src) ){
+			dst[i] = 0x00ffffff & src[i];
+		}
+	}
+
+	// fade out dead cells
+	for (int i=0; i<MATRIX_SIZE; i++){
+		if (! (0x01000000 & dst[i]) ){
+			dst[i] =  (((dst[i]       & 0x000000ff) >> 1))       |
+                (((dst[i] >> 8  & 0x000000ff) >> 1) << 8)  |
+                (((dst[i] >> 16 & 0x000000ff) >> 1) << 16);
+		}
+	}
+}
+
+CellAction analyzeCell(int offset, uint32_t buffer[]){
+	// skip the first row, first column, last column and last row to make alive neighbor
+	// detection easier.
+	if (offset < MATRIX_WIDTH) return KILL;
+	if (offset > MATRIX_SIZE - MATRIX_WIDTH ) return KILL;
+	if (offset % MATRIX_WIDTH == 0) return KILL;
+	if ((offset+1) % MATRIX_WIDTH == 0) return KILL;
+
+	int neighbors = 0;
+	int alive = buffer[offset] & 0x01000000;
+
+	if (buffer[offset-1] & 0x1000000) neighbors ++;
+	if (buffer[offset+1] & 0x1000000) neighbors ++;
+
+	offset -= MATRIX_WIDTH;
+	if (buffer[offset-1] & 0x1000000) neighbors ++;
+	if (buffer[offset]   & 0x1000000) neighbors ++;
+	if (buffer[offset+1] & 0x1000000) neighbors ++;
+
+	offset += MATRIX_WIDTH*2;
+	if (buffer[offset-1] & 0x1000000) neighbors ++;
+	if (buffer[offset]   & 0x1000000) neighbors ++;
+	if (buffer[offset+1] & 0x1000000) neighbors ++;
+
+	return (neighbors < 2) ? KILL :
+	       (alive && (neighbors == 2 || neighbors == 3)) ? COPY :
+	       (neighbors > 3) ? KILL :
+	       (!alive && neighbors == 3) ? NEW :
+	       COPY;
+}
 
 void setupRGBMatrixPorts() {
 	GPIO_InitTypeDef GPIO_InitStructure;
@@ -174,4 +243,5 @@ void setupRGBMatrixPorts() {
 	GPIO_InitStructure.GPIO_Pin = LED_P;                              // Status LED
 	GPIO_Init(LED_PORT, &GPIO_InitStructure);
 }
+
 
